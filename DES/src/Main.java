@@ -5,12 +5,17 @@ public class Main {
     // 파일을 읽어 문자열로 반환
     private static String readFile(String filePath) throws IOException {
         StringBuilder content = new StringBuilder();
+
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String line;
+            boolean appendNewLine = false;
             while ((line = br.readLine()) != null) {
+                content.append(appendNewLine ? '\n' : "");
                 content.append(line);
+                appendNewLine = true;
             }
         }
+
         return content.toString();
     }
 
@@ -20,12 +25,12 @@ public class Main {
             bw.write(content);
         }
     }
+
     public static void main(String[] args) {
         DES des = new DES();
         KeyGeneration key = new KeyGeneration("abcdefgh");
-        key.permuted_Choice1();
-        key.permuted_Choice2();
 
+        // 암호화
         try {
             // 파일 경로 설정
             String inputFilePath = "C:\\Users\\1\\Desktop\\plainText.txt";
@@ -33,7 +38,7 @@ public class Main {
 
             // plainText 파일 읽기
             String plainText = readFile(inputFilePath);
-
+            System.out.println(plainText);
             // DES 암호화
             String cipherText = des.encryption(plainText, key);
 
@@ -45,12 +50,13 @@ public class Main {
             e.printStackTrace();
         }
 
+        // 복호화
         try {
             // 파일 경로 설정
             String inputFilePath = "C:\\Users\\1\\Desktop\\cipherText.txt";
             String outputFilePath = "C:\\Users\\1\\Desktop\\plainText2.txt";
 
-            // plainText 파일 읽기
+            // cipherText 파일 읽기
             String cipherText = readFile(inputFilePath);
 
             // DES 복호화
@@ -63,17 +69,5 @@ public class Main {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-
-
-//        DES des = new DES();
-//        KeyGeneration key = new KeyGeneration("abcdefgh");
-//        key.permuted_Choice1();
-//        key.permuted_Choice2();
-//
-//        String cipherText = des.encryption("abcd", key);
-//        System.out.println("\nCiphertext(ASC) : " + cipherText);
-//        String plainText = des.decryption(cipherText, key);
-//        System.out.println("\nPlainText(ASC) : " + plainText);
     }
 }

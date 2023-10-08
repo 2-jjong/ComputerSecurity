@@ -108,201 +108,161 @@ public class DES {
             }
     };
 
-//    public String encryption(String text, KeyGeneration key) {
-//        int[] plainText = input(text);
-//        int[] initialPermutationText = permutation(plainText, IP_Table);
-//        int[] leftText = divide(initialPermutationText, 0, 32);
-//        int[] rightText = divide(initialPermutationText, 32, 64);
-//        int[] temp;
-//
-//        for (int round = 0; round < 16; round++) {
-//            int[] expandText = expansion(rightText);
-//            int[] xorText = XOR(expandText, key.getSubkey(round));
-//            int[] substitutionText = substitution(xorText);
-//            int[] permutationText = permutation(substitutionText, per_Table);
-//            temp = rightText;
-//            rightText = XOR(leftText, permutationText);
-//            leftText = temp;
-//        }
-//
-//        int[] combineText = combine(rightText, leftText);
-//        int[] cipherText = permutation(combineText, inverse_IP_Table);
-//        String cipher = output(cipherText);
-//
-//        return cipher;
-//    }
-//
-//    public String decryption(String text, KeyGeneration key) {
-//        int[] cipherText = input(text);
-//        int[] initialPermutationText = permutation(cipherText, IP_Table);
-//        int[] leftText = divide(initialPermutationText, 0, 32);
-//        int[] rightText = divide(initialPermutationText, 32, 64);
-//        int[] temp;
-//
-//        for (int round = 15; round >= 0; round--) {
-//            int[] expandText = expansion(rightText);
-//            int[] xorText = XOR(expandText, key.getSubkey(round));
-//            int[] substitutionText = substitution(xorText);
-//            int[] permutationText = permutation(substitutionText, per_Table);
-//            temp = rightText;
-//            rightText = XOR(leftText, permutationText);
-//            leftText = temp;
-//        }
-//
-//        int[] combineText = combine(rightText, leftText);
-//        int[] plainText = permutation(combineText, inverse_IP_Table);
-//        String plain = output(plainText);
-//
-//        return plain;
-//    }
-
+    // Encryption
     public String encryption(String text, KeyGeneration key) {
         StringBuilder cipherBuilder = new StringBuilder();
 
-        // 입력 문자열을 64비트 블록으로 나누어 암호화
+        // 입력 문자열을 64bit 블록으로 나누어 암호화 진행
         for (int i = 0; i < text.length(); i += 8) {
+            // 64bit(8글자)씩 블록을 나눔
             String block = text.substring(i, Math.min(i + 8, text.length()));
-            int[] plainText = input(block);
 
-            if (plainText.length < 64) {
-                // 입력 블록이 64비트 미만일 경우 패딩 추가
-                int paddingLength = 64 - plainText.length;
-                for (int j = 0; j < paddingLength; j++) {
-                    plainText = Arrays.copyOf(plainText, plainText.length + 1);
-                    plainText[plainText.length - 1] = 0; // 패딩 값은 0으로 설정
-                }
-            }
-
-            int[] initialPermutationText = permutation(plainText, IP_Table);
-            int[] leftText = divide(initialPermutationText, 0, 32);
-            int[] rightText = divide(initialPermutationText, 32, 64);
+            int[] plainText = input(block); // 문자열을 64bit text로 변환
+            int[] initialPermutationText = permutation(plainText, IP_Table);    // IP_Table을 사용하여 Initial Permutation 진행
+            int[] leftText = division(initialPermutationText, 0, 32);   // 32bit leftText
+            int[] rightText = division(initialPermutationText, 32, 64); // 32bit rightText
             int[] temp;
 
-            for (int round = 0; round < 16; round++) {
-                int[] expandText = expansion(rightText);
-                int[] xorText = XOR(expandText, key.getSubkey(round));
-                int[] substitutionText = substitution(xorText);
-                int[] permutationText = permutation(substitutionText, per_Table);
-                temp = rightText;
-                rightText = XOR(leftText, permutationText);
-                leftText = temp;
+            for (int round = 0; round < 16; round++) {  // 16 round 진행
+                int[] expandText = expansion(rightText);    // 32bit rightText를 48bit로 확장
+                int[] xorText = XOR(expandText, key.getSubKey(round));  // expansion한 text를 각 round에 맞는 subkey와 XOR
+                int[] substitutionText = substitution(xorText); // XOR한 text를 32bit로 축소
+                int[] permutationText = permutation(substitutionText, per_Table);   // per_Table을 사용하여 Permutation 진행
+                temp = rightText;   // rightText를 leftText로 옮기기 위해 임시로 저장
+                rightText = XOR(leftText, permutationText); // leftText와 permutation한 text XOR
+                leftText = temp;    // 임시 저장한 rightText를 leftText로 변경
             }
 
-            int[] combineText = combine(rightText, leftText);
-            int[] cipherText = permutation(combineText, inverse_IP_Table);
-            String cipherBlock = output(cipherText);
+            int[] combineText = combine(rightText, leftText);   // 16 round 진행 한 left, right text를 swap해서 결합
+            int[] cipherText = permutation(combineText, inverse_IP_Table);  // inverse_IP_Table을 사용하여 Inverse Permutation 진행
+            String cipherBlock = output(cipherText);    // 64bit text를 문자열로 변환
 
-            cipherBuilder.append(cipherBlock);
+            cipherBuilder.append(cipherBlock);  // 한 블록의 문자열을 추가
         }
 
-        return cipherBuilder.toString();
+        return cipherBuilder.toString();    // 모든 블록을 끝낸 최종 문자열을 반환
     }
 
+    // Decryption
     public String decryption(String text, KeyGeneration key) {
         StringBuilder plainBuilder = new StringBuilder();
 
-        // 입력 문자열을 64비트 블록으로 나누어 복호화
+        // 입력 문자열을 64bit 블록으로 나누어 복호화 진행
         for (int i = 0; i < text.length(); i += 8) {
+            // 64bit(8글자)씩 블록을 나눔
             String block = text.substring(i, Math.min(i + 8, text.length()));
-            int[] cipherText = input(block);
 
-            if (cipherText.length < 64) {
-                // 입력 블록이 64비트 미만일 경우 오류 처리 또는 예외 처리 필요
-                // 여기에서는 간단하게 오류 메시지 출력
-                System.err.println("Error: Input block size is less than 64 bits.");
-                return null; // 복호화 실패
-            }
-
-            int[] initialPermutationText = permutation(cipherText, IP_Table);
-            int[] leftText = divide(initialPermutationText, 0, 32);
-            int[] rightText = divide(initialPermutationText, 32, 64);
+            int[] cipherText = input(block);    // 문자열을 64bit text로 변환
+            int[] initialPermutationText = permutation(cipherText, IP_Table);   // IP_Table을 사용하여 Initial Permutation 진행
+            int[] leftText = division(initialPermutationText, 0, 32);   // 32bit leftText
+            int[] rightText = division(initialPermutationText, 32, 64); // 32bit rightText
             int[] temp;
 
-            for (int round = 15; round >= 0; round--) {
-                int[] expandText = expansion(rightText);
-                int[] xorText = XOR(expandText, key.getSubkey(round));
-                int[] substitutionText = substitution(xorText);
-                int[] permutationText = permutation(substitutionText, per_Table);
-                temp = rightText;
-                rightText = XOR(leftText, permutationText);
-                leftText = temp;
+            for (int round = 15; round >= 0; round--) { // 복호화는 암호화와 반대로 key를 마지막부터 사용하여 16round 진행
+                int[] expandText = expansion(rightText);    // 32bit rightText를 48bit로 확장
+                int[] xorText = XOR(expandText, key.getSubKey(round));  // expansion한 text를 각 round에 맞는 subkey와 XOR
+                int[] substitutionText = substitution(xorText); // XOR한 text를 32bit로 축소
+                int[] permutationText = permutation(substitutionText, per_Table);    // per_Table을 사용하여 Permutation 진행
+                temp = rightText;   // rightText를 leftText로 옮기기 위해 임시로 저장
+                rightText = XOR(leftText, permutationText); // leftText와 permutation한 text XOR
+                leftText = temp;    // 임시 저장한 rightText를 leftText로 변경
             }
 
-            int[] combineText = combine(rightText, leftText);
-            int[] plainText = permutation(combineText, inverse_IP_Table);
-            String plainBlock = output(plainText);
+            int[] combineText = combine(rightText, leftText);   // 16 round 진행 한 left, right text를 swap해서 결합
+            int[] plainText = permutation(combineText, inverse_IP_Table);   // inverse_IP_Table을 사용하여 Inverse Permutation 진행
+            String plainBlock = output(plainText);  // 64bit text를 문자열로 변환
 
-            plainBuilder.append(plainBlock);
+            plainBuilder.append(plainBlock);    // 한 블록의 문자열을 추가
         }
 
-        return plainBuilder.toString();
+        return plainBuilder.toString();     // 모든 블록을 끝낸 최종 문자열을 반환
     }
 
+    // Input
     public int[] input(String input) {
-        // 입력 문자열의 길이를 확인하고 부족한 경우 공백 문자로 채웁니다.
-        int length = input.length();
-        if (length < 8) {
-            input = input + "        ".substring(length);
+        // 문자열의 길이가 64bit(8글자)인지 확인하고 아닌 경우 공백으로 채움
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < 8 - input.length(); i++) {
+            sb.append('\0');
         }
 
+        input = input + sb.toString();
+
+        // 문자열을 2진수 64bit로 변환
         int[] plainText = new int[64];
+        int temp;
 
         for (int i = 0; i < 8; i++) {
             char c = input.charAt(i);
-            int charValue = (int) c;
+            temp = (int) c;
 
-            // 각 문자를 이진 형태로 변환하여 저장합니다.
             for (int j = 0; j < 8; j++) {
-                plainText[i * 8 + j] = (charValue & (1 << (7 - j))) != 0 ? 1 : 0;
+                plainText[i * 8 + j] = (temp & (1 << (7 - j))) != 0 ? 1 : 0;
             }
         }
 
         return plainText;
     }
 
+    // Output
     public String output(int[] arr) {
-        int i, j, s = 0;
-        int[] num = new int[8];
-        int Decimal = 0;
         StringBuilder sb = new StringBuilder();
-        for (i = 0; i < 8; i++) {
-            for (j = 0; j < 8; j++) {
-                num[j] = arr[j + s];
+
+        // 2진수 64bit를 문자열로 변환
+        int temp;
+
+        for (int i = 0; i < arr.length; i += 8) {
+            temp = 0;
+
+            for (int j = 0; j < 8; j++) {
+                temp += arr[i + j] * (1 << (7 - j));
             }
-            s = s + 8;
-            Decimal = (num[7] * 1) + (num[6] * 2) + (num[5] * 4) + (num[4] * 8) + (num[3] * 16) + (num[2] * 32) + (num[1] * 64) + (num[0] * 128);
-            sb.append((char) Decimal);
+
+            sb.append((char) temp);
         }
+
         return sb.toString();
     }
 
+    // Permutation
     public int[] permutation(int[] arr, int[] permutation_Table) {
+        // 매개변수로 받은 Table로 Permutation 진행
         int[] result = new int[arr.length];
-        int temp;
+        int index;
 
         for (int i = 0; i < arr.length; i++) {
-            temp = permutation_Table[i];
-            result[i] = arr[temp - 1];
+            index = permutation_Table[i] - 1; // Table의 값이 인덱스로 사용될 경우 -1
+            result[i] = arr[index];
         }
 
         return result;
     }
 
-    public int[] divide(int[] arr, int start, int end) {
+    // Division
+    public int[] division(int[] arr, int start, int end) {
+        // arr을 start부터 end까지 복사하여 나눔
         int[] result = Arrays.copyOfRange(arr, start, end);
         return result;
     }
 
+    // Expansion
     public int[] expansion(int[] arr) {
+        // Table을 사용하여 32bit -> 48bit 확장
         int[] result = new int[48];
+        int index;
+
         for (int i = 0; i < 48; i++) {
-            int index = expansionTable[i] - 1; // 테이블의 인덱스
+            index = expansionTable[i] - 1; // Table의 값이 인덱스로 사용될 경우 -1
             result[i] = arr[index];
         }
+
         return result;
     }
 
+    // XOR
     public int[] XOR(int[] arr, int[] arr2) {
+        // arr과 arr2를 XOR 진행
         int[] result = new int[arr.length];
 
         for (int i = 0; i < arr.length; i++) {
@@ -312,8 +272,10 @@ public class DES {
         return result;
     }
 
+    // Substitution
     public int[] substitution(int[] arr) {
-        int[] result = new int[32]; // 32비트 출력 배열
+        // S-Box를 사용하여 48bit -> 32bit로 축소
+        int[] result = new int[32];
         int i, num;
         int row = 0, col = 0;
 
@@ -333,7 +295,9 @@ public class DES {
         return result;
     }
 
+    // Combine
     public int[] combine(int[] arr, int[] arr2) {
+        // arr과 arr2를 결합
         int[] result = new int[arr.length + arr2.length];
 
         System.arraycopy(arr, 0, result, 0, arr.length);

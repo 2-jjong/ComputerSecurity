@@ -1,5 +1,9 @@
+import java.util.Arrays;
+
 public class KeyGeneration {
     private final String key;
+
+    // Permuted Choice1 Table
     private static final int[] pc1_Table = {
             57, 49, 41, 33, 25, 17, 9,
             1, 58, 50, 42, 34, 26, 18,
@@ -9,94 +13,84 @@ public class KeyGeneration {
             7, 62, 54, 46, 38, 30, 22,
             14, 6, 61, 53, 45, 37, 29,
             21, 13, 5, 28, 20, 12, 4};
-    private int[] Lkey;
-    private int[] Rkey;
-    private int[][] subkey;
 
-    public int[] getSubkey(int round) {
-        return subkey[round];
+    // 16 라운드를 진행할 SubKey
+    private int[][] subKey;
+
+    public int[] getSubKey(int round) {
+        return this.subKey[round];
     }
 
     public KeyGeneration(String key) {
         this.key = key;
-        this.Lkey = new int[28];
-        this.Rkey = new int[28];
-        this.subkey = new int[16][48];
+        this.subKey = new int[16][48];
+        create_SubKey();
     }
 
-    public void permuted_Choice1() {
-        int[] num = new int[8];
-        int[][] key_8_8bit = new int[8][8];
+    // subKey 생성
+    public void create_SubKey(){
+        int[] pc1_Key = permuted_Choice1(); // Permuted Choice1 진행
+        int[] leftKey = division(pc1_Key, 0,28);    // leftKey로 분할
+        int[] rightKey = division(pc1_Key, 28,56);  // rightKey로 분할
+        permuted_Choice2(leftKey, rightKey);    // Permuted Choice2로 16 라운드의 subKey 생성
+    }
+
+    // Permuted Choice1
+    public int[] permuted_Choice1() {
         int[] key_64bit = new int[64];
         int[] key_56bit = new int[56];
         int temp;
-        int k = 0;
 
+        // 문자열의 길이가 64bit(8글자)인지 확인하고 아닌 경우 공백으로 채움
         StringBuilder sb = new StringBuilder();
         sb.append(this.key);
         String padding = "\0".repeat(9 - this.key.length());
         sb.append(padding);
 
+        // 문자열을 2진수 64bit로 변환
         for (int i = 0; i < 8; i++) {
-            num[i] = sb.charAt(i);
-        }
+            char c = sb.charAt(i);
+            temp = (int) c;
 
-        for (int i = 0; i < 8; i++) {
-            key_8_8bit[i][0] = (num[i] / 128) == 1 ? 1 : 0;
-            num[i] %= 128;
-            key_8_8bit[i][1] = (num[i] / 64) == 1 ? 1 : 0;
-            num[i] %= 64;
-            key_8_8bit[i][2] = (num[i] / 32) == 1 ? 1 : 0;
-            num[i] %= 32;
-            key_8_8bit[i][3] = (num[i] / 16) == 1 ? 1 : 0;
-            num[i] %= 16;
-            key_8_8bit[i][4] = (num[i] / 8) == 1 ? 1 : 0;
-            num[i] %= 8;
-            key_8_8bit[i][5] = (num[i] / 4) == 1 ? 1 : 0;
-            num[i] %= 4;
-            key_8_8bit[i][6] = (num[i] / 2) == 1 ? 1 : 0;
-            num[i] %= 2;
-            key_8_8bit[i][7] = (num[i]) == 1 ? 1 : 0;
-        }
-
-        for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
-                key_64bit[j + k] = key_8_8bit[i][j];
+                key_64bit[i * 8 + j] = (temp & (1 << (7 - j))) != 0 ? 1 : 0;
             }
-            k = k + 8;
         }
 
+        // pc1_Table에 넣어 64bit key를 56bit key로 축소
         for (int i = 0; i < this.pc1_Table.length; i++) {
             temp = pc1_Table[i];
             key_56bit[i] = key_64bit[temp - 1];
         }
 
-        for (int i = 0; i < key_56bit.length; i++) {
-            if (i < 28) {
-                Lkey[i] = key_56bit[i];
-            } else {
-                Rkey[i - 28] = key_56bit[i];
-            }
-        }
+        return key_56bit;
     }
 
-    public void permuted_Choice2() {
+    // Division
+    public int[] division(int[] key, int start, int end) {
+        // key을 start부터 end까지 복사하여 나눔
+        int[] result = Arrays.copyOfRange(key, start, end);
+        return result;
+    }
+
+    // Permuted Choice2
+    public void permuted_Choice2(int[] leftKey, int[] rightKey) {
         for (int round = 0; round < 16; round++) {
-            // 각 라운드에서의 left shift 횟수 결정
+            // 1,2,9,16 라운드는 1번, 나머지 라운드는 2번 shift 진행
             int shiftCount = (round == 0 || round == 1 || round == 8 || round == 15) ? 1 : 2;
 
-            // Lkey와 Rkey를 왼쪽으로 shift
+            // Lkey와 Rkey를 각각 left shift
             for (int i = 0; i < shiftCount; i++) {
-                leftShift(Lkey);
-                leftShift(Rkey);
+                leftShift(leftKey);
+                leftShift(rightKey);
             }
 
-            // Lkey와 Rkey를 합쳐서 새로운 서브키 생성 (48비트)
-            generateSubKey(Lkey, Rkey, round);
+            // leftKey와 rightKey를 합쳐서 새로운 subKey 생성 (48비트)
+            generateSubKey(leftKey, rightKey, round);
         }
     }
 
-    // 왼쪽으로 한 칸 시프트하는 메서드
+    // Left Shift
     public void leftShift(int[] key) {
         int temp = key[0];
 
@@ -107,27 +101,31 @@ public class KeyGeneration {
         key[key.length - 1] = temp;
     }
 
-    public void generateSubKey(int[] Lkey, int[] Rkey, int round) {
+    // SubKey 생성
+    public void generateSubKey(int[] leftKey, int[] rightKey, int round) {
         int[] temp = new int[56];
         int index = 0;
 
-        for (int i = 0; i < Lkey.length + Rkey.length; i++) {
+        // leftKey, rightKey 결합
+        for (int i = 0; i < leftKey.length + rightKey.length; i++) {
             if (i < 28) {
-                temp[i] = Lkey[i];
+                temp[i] = leftKey[i];
             } else {
-                temp[i] = Rkey[i - 28];
+                temp[i] = rightKey[i - 28];
             }
         }
 
-        int[] excludedbits = {8, 17, 21, 24, 34, 37, 42, 53};
+        // 48bit로 축소하기 위해 left의 8,17,21,25 bit, rihgt의 6,9,14,25 bit 제거
+        int[] removeBit = {8, 17, 21, 24, 34, 37, 42, 53};
 
-        for (int i = 0; i < excludedbits.length; i++) {
-            temp[(excludedbits[i] - 1)] = -1;
+        for (int i = 0; i < removeBit.length; i++) {
+            temp[(removeBit[i] - 1)] = -1;
         }
 
+        // 최종 subKey 생성
         for (int i = 0; i < temp.length; i++) {
             if (temp[i] != -1) {
-                subkey[round][index] = temp[i];
+                this.subKey[round][index] = temp[i];
                 index++;
             }
         }
