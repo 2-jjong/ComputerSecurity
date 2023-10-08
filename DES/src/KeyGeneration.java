@@ -1,7 +1,5 @@
 public class KeyGeneration {
     private final String key;
-
-    // Permuted Choice1 Table
     private static final int[] pc1_Table = {
             57, 49, 41, 33, 25, 17, 9,
             1, 58, 50, 42, 34, 26, 18,
