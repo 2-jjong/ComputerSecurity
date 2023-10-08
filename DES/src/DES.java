@@ -1,3 +1,5 @@
+import java.util.Arrays;
+
 public class DES {
     // IP Table
     private static final int[] IP_Table = {
@@ -22,11 +24,22 @@ public class DES {
             33, 1, 41, 9, 49, 17, 57, 25};
 
     // Permutation Table
-    int[] per_Table = {
-            15, 6, 19, 20, 28, 11, 27, 16,
-            0, 14, 22, 25, 4, 17, 30, 9,
-            1, 7, 23, 13, 31, 26, 2, 8,
-            18, 12, 29, 5, 21, 10, 3, 24};
+    private static final int[] per_Table = {
+            16, 7, 20, 21, 29, 12, 28, 17,
+            1, 15, 23, 26, 5, 18, 31, 10,
+            2, 8, 24, 14, 30, 27, 3, 9,
+            19, 13, 32, 6, 22, 11, 4, 25};
+
+    // Expansion Table
+    private static final int[] expansionTable = {
+            32, 1, 2, 3, 4, 5,
+            4, 5, 6, 7, 8, 9,
+            8, 9, 10, 11, 12, 13,
+            12, 13, 14, 15, 16, 17,
+            16, 17, 18, 19, 20, 21,
+            20, 21, 22, 23, 24, 25,
+            24, 25, 26, 27, 28, 29,
+            28, 29, 30, 31, 32, 1};
 
     // S-Box
     private static final int[][][] s_Box = {
@@ -95,14 +108,56 @@ public class DES {
             }
     };
 
-    public void encryption(String text) {
+    public String encryption(String text, String key) {
         int[] plainText = input(text);
-        int[][] leftText = new int[8][4];
-        int[][] rightText = new int[8][4];
-        initialPermutation(plainText);
-        divide_LR(plainText, leftText, rightText);
+        permutation(plainText, IP_Table);
+        int[] leftText = divide(plainText, 0, 32);
+        int[] rightText = divide(plainText, 32, 64);
 
+        KeyGeneration keyGeneration = new KeyGeneration(key);
+        keyGeneration.permuted_Choice1();
+        keyGeneration.permuted_Choice2();
 
+        for (int round = 0; round < 16; round++) {
+            int[] expandText = expansion(rightText);
+            int[] xorText = XOR(expandText, keyGeneration.getSubkey(round));
+            int[] substitutionText = substitution(xorText);
+            int[] permutationText = permutation(substitutionText, per_Table);
+            leftText = rightText;
+            rightText = XOR(leftText, permutationText);
+        }
+
+        int[] combineText = combine(rightText, leftText);
+        int[] cipherText = permutation(combineText, inverse_IP_Table);
+        String cipher = output(cipherText);
+
+        return cipher;
+    }
+
+    public String decryption(String text, String key) {
+        int[] cipherText = input(text);
+        permutation(cipherText, IP_Table);
+        int[] leftText = divide(cipherText, 0, 32);
+        int[] rightText = divide(cipherText, 32, 64);
+
+        KeyGeneration keyGeneration = new KeyGeneration(key);
+        keyGeneration.permuted_Choice1();
+        keyGeneration.permuted_Choice2();
+
+        for (int round = 15; round >= 0; round--) {
+            int[] expandText = expansion(rightText);
+            int[] xorText = XOR(expandText, keyGeneration.getSubkey(round));
+            int[] substitutionText = substitution(xorText);
+            int[] permutationText = permutation(substitutionText, per_Table);
+            leftText = rightText;
+            rightText = XOR(leftText, permutationText);
+        }
+
+        int[] combineText = combine(rightText, leftText);
+        int[] plainText = permutation(combineText, inverse_IP_Table);
+        String plain = output(plainText);
+
+        return plain;
     }
 
     public int[] input(String input) {
@@ -161,160 +216,72 @@ public class DES {
             Decimal = (num[7] * 1) + (num[6] * 2) + (num[5] * 4) + (num[4] * 8) + (num[3] * 16) + (num[2] * 32) + (num[1] * 64) + (num[0] * 128);
             sb.append((char) Decimal);
         }
-        System.out.println("\nCiphertext(ASC) : " + sb.toString());
         return sb.toString();
     }
 
-    // Initial Permutation
-    public void initialPermutation(int[] p) {
-        int i;
+    public int[] permutation(int[] arr, int[] permutation_Table) {
+        int[] result = new int[arr.length];
         int temp;
-        int[] q = new int[64];
 
-        for (i = 0; i < 64; i++) {
-            q[i] = p[i];
+        for (int i = 0; i < arr.length; i++) {
+            temp = permutation_Table[i];
+            result[i] = arr[temp - 1];
         }
-        for (i = 0; i < 64; i++) {
-            temp = IP_Table[i];
-            p[i] = q[temp - 1];
-        }
+
+        return result;
     }
 
-    // Inverse Initial Permutation
-    public void inverseInitialPermutation(int[] p) {
-        int i;
-        int temp;
-        int[] q = new int[64];
-
-        for (i = 0; i < 64; i++) {
-            q[i] = p[i];
-        }
-        for (i = 0; i < 64; i++) {
-            temp = inverse_IP_Table[i];
-            p[i] = q[temp - 1];
-        }
+    public int[] divide(int[] arr, int start, int end) {
+        int[] result = Arrays.copyOfRange(arr, start, end);
+        return result;
     }
 
-    // Round Permutation
-    public void permutation(int[] p) {
-        int i;
-        int temp;
-        int[] q = new int[32];
-
-        for (i = 0; i < 32; i++) {
-            q[i] = p[i];
+    public int[] expansion(int[] arr) {
+        int[] result = new int[48];
+        for (int i = 0; i < 48; i++) {
+            int index = expansionTable[i] - 1; // 테이블의 인덱스
+            result[i] = arr[index];
         }
-        for (i = 0; i < 32; i++) {
-            temp = per_Table[i];
-            p[i] = q[temp];
-        }
+        return result;
     }
 
-    public void divide_LR(int[] text, int[][] left, int[][] right) {
-        int i, j;
-        int k = 0;
-        for (i = 0; i < 8; i++) {
-            for (j = 0; j < 4; j++) {
-                left[i][j] = text[j + k];
-                right[i][j] = text[j + 32 + k];
-            }
-            k = k + 4;
+    public int[] XOR(int[] arr, int[] arr2) {
+        int[] result = new int[arr.length];
+
+        for (int i = 0; i < arr.length; i++) {
+            result[i] = arr[i] ^ arr2[i];
         }
+
+        return result;
     }
 
-    public void combine_8_4bit_to_32bit(int[][] arr, int[] comArr) {
-        int i, j;
-        int k = 0;
-
-        for (i = 0; i < 8; i++) {
-            for (j = 0; j < 4; j++) {
-                comArr[j + k] = arr[i][j];
-            }
-            k = k + 4;
-        }
-    }
-
-    public void extend_R(int[][] arr, int[][] exArr) {
-        int i, j;
-
-        for (i = 0; i < 8; i++) {
-            exArr[i][5] = arr[(i + 1) % 8][0];
-            exArr[i][0] = arr[(7 + i) % 8][3];
-
-            for (j = 1; j < 5; j++) {
-                exArr[i][j] = arr[i][j - 1];
-            }
-        }
-    }
-
-    public void combine_8_6bit_to_48bit(int[][] arr, int[] comArr) {
-        int i, j;
-        int k = 0;
-
-        for (i = 0; i < 8; i++) {
-            for (j = 0; j < 6; j++) {
-                comArr[j + k] = arr[i][j];
-            }
-            k = k + 6;
-        }
-    }
-
-    public void XOR(int s, int[] arr, int[] arr2, int[] arr_AfterXOR_arr2) {
-        int i = 0;
-
-        if (s == 48) {
-            for (i = 0; i < 48; i++) {
-                arr_AfterXOR_arr2[i] = arr[i] ^ arr2[i];
-            }
-        } else {
-            for (i = 0; i < 32; i++) {
-                arr_AfterXOR_arr2[i] = arr[i] ^ arr2[i];
-            }
-        }
-    }
-
-    public void divide_48bit_to_8_6bit(int[] arr, int[][] divideArr) {
-        int i, j;
-        int k = 0;
-
-        for (i = 0; i < 8; i++) {
-            for (j = 0; j < 6; j++) {
-                divideArr[i][j] = arr[j + k];
-            }
-            k = k + 6;
-        }
-    }
-
-    public void substitution(int[][] exArr, int[][] R_AftersBox_8_4) {
+    public int[] substitution(int[] arr) {
+        int[] result = new int[32]; // 32비트 출력 배열
         int i, num;
-        int j = 0;
         int row = 0, col = 0;
 
         for (i = 0; i < 8; i++) {
-            row = (exArr[i][0] * 2) + (exArr[i][5] * 1);
-            col = (exArr[i][1] * 8) + (exArr[i][2] * 4) + (exArr[i][3] * 2) + (exArr[i][4] * 1);
-            num = s_Box[j][row][col];
-            R_AftersBox_8_4[i][0] = (num / 8) != 0 ? 1 : 0;
+            row = (arr[i * 6] * 2) + (arr[i * 6 + 5] * 1);
+            col = (arr[i * 6 + 1] * 8) + (arr[i * 6 + 2] * 4) + (arr[i * 6 + 3] * 2) + (arr[i * 6 + 4] * 1);
+            num = s_Box[i][row][col];
+            result[i * 4] = (num / 8) != 0 ? 1 : 0;
             num %= 8;
-            R_AftersBox_8_4[i][1] = (num / 4) != 0 ? 1 : 0;
+            result[i * 4 + 1] = (num / 4) != 0 ? 1 : 0;
             num %= 4;
-            R_AftersBox_8_4[i][2] = (num / 2) != 0 ? 1 : 0;
+            result[i * 4 + 2] = (num / 2) != 0 ? 1 : 0;
             num %= 2;
-            R_AftersBox_8_4[i][3] = (num) != 0 ? 1 : 0;
-            j++;
-            if (j == 8) {
-                j = 0;
-            }
+            result[i * 4 + 3] = (num) != 0 ? 1 : 0;
         }
+
+        return result;
     }
 
-    public void combine_64_bit(int[] arr, int[] arr2, int[] arr3) {
-        for (int j = 0; j < 64; j++) {
-            if (j < 32) {
-                arr3[j] = arr[j];
-            } else {
-                arr3[j] = arr2[j - 32];
-            }
-        }
+    public int[] combine(int[] arr, int[] arr2) {
+        int[] result = new int[arr.length + arr2.length];
+
+        System.arraycopy(arr, 0, result, 0, arr.length);
+        System.arraycopy(arr2, 0, result, arr.length, arr2.length);
+
+        return result;
     }
 }
