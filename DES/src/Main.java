@@ -1,18 +1,14 @@
 import java.io.*;
 
-
 public class Main {
     // 파일을 읽어 문자열로 반환
     private static String readFile(String filePath) throws IOException {
         StringBuilder content = new StringBuilder();
 
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            boolean appendNewLine = false;
-            while ((line = br.readLine()) != null) {
-                content.append(appendNewLine ? '\n' : "");
-                content.append(line);
-                appendNewLine = true;
+        try (FileReader reader = new FileReader(filePath)) {
+            int c;
+            while ((c = reader.read()) != -1) {
+                content.append((char) c);
             }
         }
 
@@ -28,46 +24,65 @@ public class Main {
 
     public static void main(String[] args) {
         DES des = new DES();
-        KeyGeneration key = new KeyGeneration("abcdefgh");
+        KeyGeneration key = new KeyGeneration("abcdefgh");  // Key: abcdefgh
+        String ivStr = "abcdefgh";
 
         // 암호화
         try {
             // 파일 경로 설정
-            String inputFilePath = "C:\\Users\\1\\Desktop\\plainText.txt";
-            String outputFilePath = "C:\\Users\\1\\Desktop\\cipherText.txt";
+            String inputFilePath = "/Users/ijonghyeon/Desktop/plaintext.txt";
+            String encryptionFilePath = "/Users/ijonghyeon/Desktop/ciphertext.txt";
+            String decryptionFilePath = "/Users/ijonghyeon/Desktop/decryptiontext.txt";
 
+            System.out.println("< Encryption >");
             // plainText 파일 읽기
             String plainText = readFile(inputFilePath);
-            System.out.println(plainText);
+            System.out.println("Key: " + key.getKey());
+            System.out.println("Initialization Vector: " + ivStr);
+            System.out.println("\nPlainText: " + plainText);
+
             // DES 암호화
-            String cipherText = des.encryption(plainText, key);
+            String cipherText = des.encryption_cbc(plainText, key, ivStr);
+            System.out.println("\nCipherText: " + cipherText);
 
             // 결과를 파일에 쓰기
-            writeFile(outputFilePath, cipherText);
+            writeFile(encryptionFilePath, cipherText);
 
-            System.out.println("\nCiphertext(ASC) : " + cipherText);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
-        // 복호화
-        try {
-            // 파일 경로 설정
-            String inputFilePath = "C:\\Users\\1\\Desktop\\cipherText.txt";
-            String outputFilePath = "C:\\Users\\1\\Desktop\\plainText2.txt";
-
+            System.out.println("\n< Decryption >");
             // cipherText 파일 읽기
-            String cipherText = readFile(inputFilePath);
+            cipherText = readFile(encryptionFilePath);
+            System.out.println("Key: " + key.getKey());
+            System.out.println("Initialization Vector: " + ivStr);
+            System.out.println("\nCipherText: " + cipherText);
 
             // DES 복호화
-            String plainText = des.decryption(cipherText, key);
+            String decryptionText = des.decryption_cbc(cipherText, key, ivStr);
+            System.out.println("\nPlainText: " + decryptionText);
 
             // 결과를 파일에 쓰기
-            writeFile(outputFilePath, plainText);
+            writeFile(decryptionFilePath, decryptionText);
 
-            System.out.println("\nPlaintext(ASC) : " + plainText);
+
+            // plainText와 암호화 후 복호화한 decryptionText 검증
+            if (plainText.equals(decryptionText)) {
+                System.out.println("\n검증: PlainText와 DecryptionText가 같습니다.");
+            } else {
+                System.out.println("\n검증: PlainText와 DecryptionText가 같지 않습니다.");
+                System.out.println("PlainText Length: " + plainText.length());
+                System.out.println("DecryptionText Length: " + decryptionText.length());
+
+                // 원본 텍스트와 복호화된 텍스트가 다른 경우 어느 부분이 다른지 출력
+                for (int i = 0; i < plainText.length(); i++) {
+                    if (plainText.charAt(i) != decryptionText.charAt(i)) {
+                        System.out.println("다른 위치: 인덱스 " + i + ", 원본: " + plainText.charAt(i) + ", 복호화: " + decryptionText.charAt(i));
+                    }
+                }
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 }

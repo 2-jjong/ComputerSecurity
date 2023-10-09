@@ -14,8 +14,23 @@ public class KeyGeneration {
             14, 6, 61, 53, 45, 37, 29,
             21, 13, 5, 28, 20, 12, 4};
 
+    private static final int[] pc2_Table = {
+            14, 17, 11, 24, 1, 5,
+            3, 28, 15, 6, 21, 10,
+            23, 19, 12, 4, 26, 8,
+            16, 7, 27, 20, 13, 2,
+            41, 52, 31, 37, 47, 55,
+            30, 40, 51, 45, 33, 48,
+            44, 49, 39, 56, 34, 53,
+            46, 42, 50, 36, 29, 32
+    };
+
     // 16 라운드를 진행할 SubKey
     private int[][] subKey;
+
+    public String getKey() {
+        return this.key;
+    }
 
     public int[] getSubKey(int round) {
         return this.subKey[round];
@@ -86,7 +101,7 @@ public class KeyGeneration {
             }
 
             // leftKey와 rightKey를 합쳐서 새로운 subKey 생성 (48비트)
-            generateSubKey(leftKey, rightKey, round);
+            generateSubKey2(leftKey, rightKey, round);
         }
     }
 
@@ -126,6 +141,38 @@ public class KeyGeneration {
         for (int i = 0; i < temp.length; i++) {
             if (temp[i] != -1) {
                 this.subKey[round][index] = temp[i];
+                index++;
+            }
+        }
+    }
+
+    // SubKey 생성
+    public void generateSubKey2(int[] leftKey, int[] rightKey, int round) {
+        int[] key_56bit = new int[56];
+        int[] key_48bit = new int[48];
+        int temp;
+        int index = 0;
+
+        // leftKey, rightKey 결합
+        for (int i = 0; i < leftKey.length + rightKey.length; i++) {
+            if (i < 28) {
+                key_56bit[i] = leftKey[i];
+            } else {
+                key_56bit[i] = rightKey[i - 28];
+            }
+        }
+
+        // pc2_Table에 넣어 64bit key를 56bit key로 축소
+        for (int i = 0; i < this.pc2_Table.length; i++) {
+            temp = pc2_Table[i];
+            key_48bit[i] = key_56bit[temp - 1];
+        }
+
+
+        // 최종 subKey 생성
+        for (int i = 0; i < key_48bit.length; i++) {
+            if (key_48bit[i] != -1) {
+                this.subKey[round][index] = key_48bit[i];
                 index++;
             }
         }
