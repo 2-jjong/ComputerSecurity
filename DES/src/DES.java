@@ -121,14 +121,13 @@ public class DES {
             int[] initialPermutationText = permutation(plainText, IP_Table);    // IP_Table을 사용하여 Initial Permutation 진행
             int[] leftText = division(initialPermutationText, 0, 32);   // 32bit leftText
             int[] rightText = division(initialPermutationText, 32, 64); // 32bit rightText
-            int[] temp;
 
             for (int round = 0; round < 16; round++) {  // 16 round 진행
                 int[] expandText = expansion(rightText);    // 32bit rightText를 48bit로 확장
                 int[] xorText = XOR(expandText, key.getSubKey(round));  // expansion한 text를 각 round에 맞는 subkey와 XOR
                 int[] substitutionText = substitution(xorText); // XOR한 text를 32bit로 축소
                 int[] permutationText = permutation(substitutionText, per_Table);   // per_Table을 사용하여 Permutation 진행
-                temp = rightText;   // rightText를 leftText로 옮기기 위해 임시로 저장
+                int[] temp = rightText;   // rightText를 leftText로 옮기기 위해 임시로 저장
                 rightText = XOR(leftText, permutationText); // leftText와 permutation한 text XOR
                 leftText = temp;    // 임시 저장한 rightText를 leftText로 변경
             }
@@ -156,14 +155,13 @@ public class DES {
             int[] initialPermutationText = permutation(cipherText, IP_Table);   // IP_Table을 사용하여 Initial Permutation 진행
             int[] leftText = division(initialPermutationText, 0, 32);   // 32bit leftText
             int[] rightText = division(initialPermutationText, 32, 64); // 32bit rightText
-            int[] temp;
 
             for (int round = 15; round >= 0; round--) { // 복호화는 암호화와 반대로 key를 마지막부터 사용하여 16round 진행
                 int[] expandText = expansion(rightText);    // 32bit rightText를 48bit로 확장
                 int[] xorText = XOR(expandText, key.getSubKey(round));  // expansion한 text를 각 round에 맞는 subkey와 XOR
                 int[] substitutionText = substitution(xorText); // XOR한 text를 32bit로 축소
                 int[] permutationText = permutation(substitutionText, per_Table);    // per_Table을 사용하여 Permutation 진행
-                temp = rightText;   // rightText를 leftText로 옮기기 위해 임시로 저장
+                int[] temp = rightText;   // rightText를 leftText로 옮기기 위해 임시로 저장
                 rightText = XOR(leftText, permutationText); // leftText와 permutation한 text XOR
                 leftText = temp;    // 임시 저장한 rightText를 leftText로 변경
             }
@@ -175,16 +173,44 @@ public class DES {
             plainBuilder.append(plainBlock);    // 한 블록의 문자열을 추가
         }
 
+        removePadding(plainBuilder);    // 64비트 블록으로 잘랐을 때 넣은 패딩 제거
+
         return plainBuilder.toString();     // 모든 블록을 끝낸 최종 문자열을 반환
+    }
+
+    // 검증
+    public boolean verification(String plainText, String decryptionText){
+        int[] text1 = new int[plainText.length()];
+        int[] text2 = new int[decryptionText.length()];
+        char c;
+
+        for (int i = 0; i < text1.length; i++) {
+            c = plainText.charAt(i);
+            text1[i] = (int) c;
+        }
+
+        for (int i = 0; i < text2.length; i++) {
+            c = decryptionText.charAt(i);
+            text2[i] = (int) c;
+        }
+
+        if(text1.length == text2.length){
+            for (int i = 0; i < text2.length; i++) {
+                if(text1[i] != text2[i])
+                    return false;
+            }
+        }
+
+        return true;
     }
 
     // Input
     public int[] input(String input) {
-        // 문자열의 길이가 64bit(8글자)인지 확인하고 아닌 경우 공백으로 채움
+        // 문자열의 길이가 64bit(8글자)인지 확인하고 아닌 경우 공백으로 패딩
         StringBuilder sb = new StringBuilder();
 
         for (int i = 0; i < 8 - input.length(); i++) {
-            sb.append('\0');
+            sb.append(' ');
         }
 
         input = input + sb.toString();
@@ -201,6 +227,7 @@ public class DES {
                 plainText[i * 8 + j] = (temp & (1 << (7 - j))) != 0 ? 1 : 0;
             }
         }
+
 
         return plainText;
     }
@@ -223,6 +250,16 @@ public class DES {
         }
 
         return sb.toString();
+    }
+
+    public void removePadding(StringBuilder sb) {
+        int i = sb.length() - 1;
+
+        while (i >= 0 && Character.isWhitespace(sb.charAt(i))) {
+            i--;
+        }
+
+        sb.setLength(i + 1);
     }
 
     // Permutation

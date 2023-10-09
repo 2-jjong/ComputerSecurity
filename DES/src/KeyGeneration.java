@@ -17,6 +17,10 @@ public class KeyGeneration {
     // 16 라운드를 진행할 SubKey
     private int[][] subKey;
 
+    public String getKey() {
+        return this.key;
+    }
+
     public int[] getSubKey(int round) {
         return this.subKey[round];
     }
